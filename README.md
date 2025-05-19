@@ -36,3 +36,66 @@ graph LR
     C -- Alert_No_Alert --> B;
     B -- Alert --> E(Nursing_Agency);
     B -- Update_DB --> D;
+```
+
+# Operational Details
+
+- The Smartphone continuously captures data from the gyroscope and accelerometer.
+- The data is sent from the smartphone to the Server via HTTP requests.
+- The Server queries the Neural Network (machine learning model), which may access the database for relevant information.
+- The Neural Network processes the data and sends a response (indicating a fall or no fall) to the Server.
+- In the event of a fall detection, the Server sends an Alert to the nursing agency.
+- The database is updated with the detection information for future analysis.
+
+# Expected Results
+
+The project is expected to effectively utilize the accelerometer and gyroscope of a smartphone to monitor the user's movements during daily activities, enabling the accurate detection of falls. The system should be capable of recognizing fall patterns with high precision, minimizing both false negatives and false positives through the application of machine learning algorithms for filtering. 
+
+The filtering should achieve accuracy, sensitivity, and specificity greater than 90%, ensuring the reliability of the system and guaranteeing that alerts are correctly issued to nurses without failures in communication with the server. The alert will also include the user's location, obtained through the smartphone's GPS system.
+
+Additionally, the system aims to reduce the response time of emergency teams, ensuring that help is available quickly and promoting the independence and safety of the elderly.
+
+All information and characteristics related to detected falls will be stored for future analysis and continuous improvement of the machine learning model, allowing for the recognition of more complex patterns. In the event of a fall, an SMS or WhatsApp message is expected to be sent to a responsible contact with a maximum response time of five seconds.
+
+# Dependencies
+
+- Python
+- websocket-client
+
+# Installation
+
+1. Clone the repository:
+
+    ```bash
+    git clone https://github.com/edgargalvao/smartphone-based-fall-detection.git
+    cd smartphone-based-fall-detection
+    ```
+
+2. Install the required Python dependencies:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    This will install the `websocket-client` library.
+
+# Configuration
+
+1. Edit the `config.json` file to include the address of your WebSocket server:
+
+    ```json
+    {
+      "address": "your_server_ip_address"
+    }
+    ```
+
+2. If your server is running on a specific port, include it in the address:
+
+    ```json
+    {
+      "address": "your_server_ip_address:your_server_port"
+    }
+    ```
+
+3. Replace `your_server_ip_address` and `your_server_port` with the actual IP address and port number of your server.
+
