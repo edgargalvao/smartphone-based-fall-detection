@@ -12,44 +12,45 @@ import os
 # Twilio Call integration
 from twilio.rest import Client
 
+# Credenciais do Twilio (preencher para uso real)
 account_sid = "<twilio account sid>"
 auth_token = "<twilio auth token>"
 twilio_client = Client(account_sid, auth_token)
 TO_PHONE = "<phone to call>"
 FROM_PHONE = "<twilio phone number>"
 
+# Variáveis de controle de tempo e alerta
 start_time = time.time()
 fall_alert_sent = False
 
-# Load data
+# Carrega os dados do CSV
 df = pd.read_csv('sensor_data.csv')
 
-# Undersample falling=0 to balance the dataset
+# Balanceamento dos dados: seleciona todos os exemplos de queda e não-queda
 falling_1 = df[df['falling'] == 1]
-falling_0 = df[df['falling'] == 0]#.sample(n=len(falling_1), random_state=42, replace=False)
-df_balanced = pd.concat([falling_1, falling_0])#.sample(frac=1, random_state=42)  # shuffle
+falling_0 = df[df['falling'] == 0]  # pode ser amostrado para balancear
+df_balanced = pd.concat([falling_1, falling_0])
 
-# Select features (exclude timestamp, norm, and use only numeric columns)
+# Seleciona as colunas de features (exclui timestamp, falling, norm)
 feature_cols = [col for col in df_balanced.columns if col not in ['timestamp', 'falling', 'norm']]
 X = df_balanced[feature_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
 y = df_balanced['falling'].astype(int)
 
-# Split data
+# Divide em treino e teste
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
 
-# Train Random Forest
+# Treina o Random Forest
 clf = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
 clf.fit(X_train, y_train)
 
-# Predict and evaluate
+# Avalia o modelo
 y_pred = clf.predict(X_test)
 print("Confusion Matrix:")
 print(confusion_matrix(y_test, y_pred))
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred, zero_division=0))
 
-# Após o treinamento, conecte ao websocket e classifique em tempo real
-
+# Lista de sensores e quantidade de valores por sensor
 SENSOR_TYPES = [
     "android.sensor.accelerometer",
     "android.sensor.gyroscope",
@@ -67,13 +68,15 @@ SENSOR_VALUE_COUNTS = {
     "android.sensor.rotation_vector": 5,
 }
 
+# Novamente, seleciona as colunas de features
 feature_cols = [col for col in df_balanced.columns if col not in ['timestamp', 'falling', 'norm']]
 
-# Buffer para armazenar os dados dos sensores
+# Buffer para armazenar os dados dos sensores em tempo real
 sensor_buffer = {}
 window_timestamp = None
 WINDOW_SIZE = 0.1  # segundos
 
+# Função para realizar chamada de alerta via Twilio
 def make_call_alert():
     global fall_alert_sent
     try:
@@ -88,6 +91,7 @@ def make_call_alert():
     except Exception as e:
         print(f"[DEBUG] Falha ao realizar ligação Twilio: {e}")
 
+# Função para classificar uma janela de dados e emitir alerta se necessário
 def classify_and_alert(row):
     global fall_alert_sent
     os.system('clear' if os.name == 'posix' else 'cls')  # Limpa o console
@@ -108,6 +112,7 @@ def classify_and_alert(row):
     else:
         print("Nenhuma queda detectada.")
 
+# Função chamada ao receber mensagem do WebSocket (dados do sensor)
 def on_message(ws, message):
     global sensor_buffer, window_timestamp
     data = json.loads(message)
@@ -115,14 +120,14 @@ def on_message(ws, message):
     sensor_type = data['type']
     timestamp = time.time()
 
-    # Determine window
+    # Determina a janela de tempo
     if window_timestamp is None or timestamp - window_timestamp > WINDOW_SIZE:
         window_timestamp = timestamp
         sensor_buffer = {}
 
     sensor_buffer[sensor_type] = values
 
-    # Quando todos os sensores estiverem presentes, classifique
+    # Quando todos os sensores estiverem presentes, classifica
     if all(s in sensor_buffer for s in SENSOR_TYPES):
         row = []
         for s in SENSOR_TYPES:
@@ -132,15 +137,19 @@ def on_message(ws, message):
         window_timestamp = None
         sensor_buffer = {}
 
+# Função chamada em caso de erro no WebSocket
 def on_error(ws, error):
     print("WebSocket error:", error)
 
+# Função chamada ao fechar o WebSocket
 def on_close(ws, close_code, reason):
     print("WebSocket closed:", close_code, reason)
 
+# Função chamada ao abrir o WebSocket
 def on_open(ws):
     print("WebSocket connected.")
 
+# Função para iniciar o WebSocket e receber dados em tempo real
 def start_websocket():
     ws_url = 'ws://192.168.1.8:8080/sensors/connect?types=["android.sensor.accelerometer","android.sensor.gyroscope","android.sensor.magnetic_field","android.sensor.gravity","android.sensor.linear_acceleration","android.sensor.rotation_vector"]'
     try:
@@ -155,6 +164,7 @@ def start_websocket():
     except Exception as e:
         print(f"[DEBUG] Falha ao conectar ao servidor WebSocket: {e}")
 
+# Ponto de entrada principal
 if __name__ == "__main__":
     print("Iniciando classificação em tempo real...")
     ws_thread = threading.Thread(target=start_websocket, daemon=True)

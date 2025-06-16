@@ -1,14 +1,16 @@
 import csv
 
+# Caminho dos arquivos de entrada e saída
 input_path = 'sensor_data.csv'
 output_path = 'sensor_data_normalized.csv'
 
+# Abre o arquivo CSV de entrada e lê os dados
 with open(input_path, newline='') as f:
     reader = csv.reader(f)
     header = next(reader)
     rows = list(reader)
 
-# Identifique as colunas a serem normalizadas
+# Identifique as colunas a serem normalizadas (exceto as que estão em skip_cols)
 skip_cols = {'timestamp', 'norm', 'falling', 'android.sensor.rotation_vector_value_4'}
 col_indices = [i for i, col in enumerate(header) if col not in skip_cols]
 
@@ -65,6 +67,7 @@ for row in rows:
     norm_row.append(global_norm)
     normalized_rows.append(norm_row)
 
+# Escreve os dados normalizados no arquivo de saída
 with open(output_path, 'w', newline='') as f:
     writer = csv.writer(f)
     writer.writerow(new_header)
