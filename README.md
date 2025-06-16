@@ -2,100 +2,99 @@
 
 ## Introduction
 
-Falls represent one of the most significant risks for the elderly population. Enhancing the care and quality of life for these individuals can be achieved through the adoption of a fall detection system. This project presents a smartphone-based application that utilizes accelerometer and gyroscope data to detect falls and send a request to a nursing agency, enabling intervention and necessary care. The system also proposes mechanisms to ignore and filter out false positives, ensuring the reliability of the detections.
+Falls are a major risk for the elderly. This project presents a smartphone-based system that collects sensor data (accelerometer, gyroscope, etc.), processes it, and detects falls using a machine learning model. When a fall is detected, the system can trigger alerts to caregivers or agencies.
 
-This project draws inspiration and shares conceptual similarities with the [SensorServer repository](https://github.com/umer0586/SensorServer) by umer0586, particularly in its approach to handling sensor data and server-side processing for real-time analysis.
+## System Overview
 
-## Theoretical Background
+The system consists of:
+- **Data Collection:** An Android device streams sensor data to a Python script (`extrair_dados.py`), which saves it to a CSV file. Falls are annotated in real time by pressing the spacebar.
+- **Data Normalization:** The collected data can be normalized using `normalization.py`.
+- **Model Training & Real-Time Detection:** `random_forest.py` trains a Random Forest classifier and connects to the sensor stream for real-time fall detection and alerting.
 
-Falls are the second leading cause of accidental deaths worldwide. Annually, approximately 37.3 million severe injuries require medical attention [1]. The risk of falls primarily affects individuals with impaired balance, such as the elderly, amputees, sedentary individuals, and people with neurological disabilities [2]. Fall detection involves the use of sensors to monitor changes in posture and movement dynamics, distinguishing normal daily activities from accidental fall events.
-
-The advancement of smartphones and their integrated sensors has enabled the development of mobile health monitoring solutions. Sensors such as accelerometers and gyroscopes, commonly found in mobile devices, allow for the collection of motion data that can be analyzed by algorithms to identify falls.
-
-Furthermore, the widespread adoption of smartphones allows a large number of people to benefit from this technology without the need to purchase additional equipment, making elderly safety more accessible and simplified.
-
-## Methodology
-
-For the realization of this study, an Android smartphone running an application capable of capturing accelerometer and gyroscope data will be employed. The collected data will be processed and sent to a remote server, where it will be analyzed and classified to identify characteristic fall patterns. The system will incorporate machine learning algorithms with the aim of distinguishing and discarding false positives.
-
-### Infrastructure Details:
-
-* **Devices used:** Android smartphone equipped with accelerometer and gyroscope.
-* **Infrastructure and communication:** The application will communicate data via HTTP protocol to a remote server, implemented using a REST architecture.
-* **Processing server:** A server developed in Python will receive the data and apply a machine learning model trained for fall detection, responsible for triggering an alert to the nursing agency upon positive detection.
-* **Data storage:** Raw data and detection information will be stored in CSV format for future analysis and continuous improvement of the machine learning model.
-
-### Diagram 1 - System Connection
+## Architecture Diagram
 
 ```mermaid
 graph LR
-    A[Smartphone_Acc_Gyro] --> B(Remote_Server_Python_REST);
-    B -- HTTP_Data --> C{Neural_Network_ML_Model};
-    C -- Query_DB --> D[Database_CSV];
-    D -- Analyze_Data --> C;
-    C -- Alert_No_Alert --> B;
-    B -- Alert --> E(Nursing_Agency);
-    B -- Update_DB --> D;
+    A[Android Smartphone Sensor Data] -->|WebSocket| B[Data Collector]
+    B -->|CSV| C[Raw Sensor Data CSV]
+    C -->|Normalize| D[Normalized Sensor Data]
+    D -->|Train and Evaluate| E[Random Forest Model]
+    B -->|Live Stream| E
+    E -->|Alert| F[Caregiver or Nursing Agency]
+
+
+
+```
+## Setup & Usage
+
+### 1. Dependencies
+
+- Python 3.x
+- `websocket-client`
+- `pynput`
+- `scikit-learn`
+- `pandas`
+- `numpy`
+- (Optional) `twilio` for phone call alerts
+
+Install all dependencies:
+```bash
+pip install websocket-client pynput scikit-learn pandas numpy twilio
 ```
 
-# Operational Details
+### 2. Data Collection
 
-- The Smartphone continuously captures data from the gyroscope and accelerometer.
-- The data is sent from the smartphone to the Server via HTTP requests.
-- The Server queries the Neural Network (machine learning model), which may access the database for relevant information.
-- The Neural Network processes the data and sends a response (indicating a fall or no fall) to the Server.
-- In the event of a fall detection, the Server sends an Alert to the nursing agency.
-- The database is updated with the detection information for future analysis.
-
-# Expected Results
-
-The project is expected to effectively utilize the accelerometer and gyroscope of a smartphone to monitor the user's movements during daily activities, enabling the accurate detection of falls. The system should be capable of recognizing fall patterns with high precision, minimizing both false negatives and false positives through the application of machine learning algorithms for filtering. 
-
-The filtering should achieve accuracy, sensitivity, and specificity greater than 90%, ensuring the reliability of the system and guaranteeing that alerts are correctly issued to nurses without failures in communication with the server. The alert will also include the user's location, obtained through the smartphone's GPS system.
-
-Additionally, the system aims to reduce the response time of emergency teams, ensuring that help is available quickly and promoting the independence and safety of the elderly.
-
-All information and characteristics related to detected falls will be stored for future analysis and continuous improvement of the machine learning model, allowing for the recognition of more complex patterns. In the event of a fall, an SMS or WhatsApp message is expected to be sent to a responsible contact with a maximum response time of five seconds.
-
-# Dependencies
-
-- Python
-- websocket-client
-
-# Installation
-
-1. Clone the repository:
-
+1. **Start the sensor data stream** from your Android device to the server (ensure the device and server are on the same network).
+2. **Run the data collection script:**
     ```bash
-    git clone https://github.com/edgargalvao/smartphone-based-fall-detection.git
-    cd smartphone-based-fall-detection
+    python extrair_dados.py
     ```
+    - The script connects to the WebSocket server and writes sensor data to `sensor_data.csv`.
+    - **To annotate a fall event, press and hold the spacebar** during the fall. The script will label those samples as falls (`falling=1`), otherwise as non-fall (`falling=0`).
 
-2. Install the required Python dependencies:
+### 3. Data Normalization (Optional)
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+Normalize the collected data for better model performance:
+```bash
+python normalization.py
+```
+- This creates `sensor_data_normalized.csv` with normalized features and a global norm column.
 
-    This will install the `websocket-client` library.
+### 4. Model Training & Real-Time Detection
 
-# Configuration
+Train the Random Forest model and start real-time fall detection:
+```bash
+python random_forest.py
+```
+- The script trains a model using the CSV data.
+- It then connects to the sensor stream and classifies incoming data in real time.
+- If a fall is detected, it prints an alert and (optionally) can trigger a phone call via Twilio.
 
-1. Edit the `config.json` file to include the address of your WebSocket server:
+#### Twilio Alert Setup (Optional)
 
-    ```json
-    {
-      "address": "your_server_ip_address"
-    }
-    ```
+To enable phone call alerts:
+- Set your Twilio credentials and phone numbers in `random_forest.py`:
+  ```python
+  account_sid = "<twilio account sid>"
+  auth_token = "<twilio auth token>"
+  TO_PHONE = "<phone to call>"
+  FROM_PHONE = "<twilio phone number>"
+  ```
+- Uncomment the `make_call_alert()` line in `random_forest.py`.
 
-2. If your server is running on a specific port, include it in the address:
+## Configuration
 
-    ```json
-    {
-      "address": "your_server_ip_address:your_server_port"
-    }
-    ```
+- WebSocket server address is hardcoded in the scripts. Edit the URLs in `extrair_dados.py` and `random_forest.py` if needed.
 
-3. Replace `your_server_ip_address` and `your_server_port` with the actual IP address and port number of your server.
+## Expected Results
+
+- The system should accurately detect falls with high precision and recall, minimizing false positives/negatives.
+- Alerts are issued within seconds of a detected fall.
+- All data is stored for further analysis and model improvement.
+
+## References
+
+- [SensorServer repository](https://github.com/umer0586/SensorServer) (conceptual inspiration)
+- [WHO: Falls](https://www.who.int/news-room/fact-sheets/detail/falls)
+
 
