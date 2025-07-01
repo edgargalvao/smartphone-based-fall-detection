@@ -13,11 +13,11 @@ import os
 from twilio.rest import Client
 
 # Credenciais do Twilio (preencher para uso real)
-account_sid = "<twilio account sid>"
-auth_token = "<twilio auth token>"
+account_sid = "<your_account_sid>"
+auth_token = "<your_auth_token>"
 twilio_client = Client(account_sid, auth_token)
-TO_PHONE = "<phone to call>"
-FROM_PHONE = "<twilio phone number>"
+TO_PHONE = "<>your_phone_number>"
+FROM_PHONE = "<twilio_phone_number>"
 
 # Variáveis de controle de tempo e alerta
 start_time = time.time()
@@ -28,8 +28,8 @@ df = pd.read_csv('sensor_data.csv')
 
 # Balanceamento dos dados: seleciona todos os exemplos de queda e não-queda
 falling_1 = df[df['falling'] == 1]
-falling_0 = df[df['falling'] == 0]  # pode ser amostrado para balancear
-df_balanced = pd.concat([falling_1, falling_0])
+falling_0 = df[df['falling'] == 0].sample(n=len(falling_1), random_state=42, replace=False)
+df_balanced = pd.concat([falling_1, falling_0]).sample(frac=1, random_state=42)
 
 # Seleciona as colunas de features (exclui timestamp, falling, norm)
 feature_cols = [col for col in df_balanced.columns if col not in ['timestamp', 'falling', 'norm']]
@@ -82,7 +82,7 @@ def make_call_alert():
     try:
         call = twilio_client.calls.create(
             #url="http://demo.twilio.com/docs/voice.xml",
-            twiml='<Response><Say voice="alice" language="pt-BR" >Alerta de queda detectada!</Say></Response>',
+            twiml='<Response><Say voice="alice" language="pt-BR" >Alerta de queda detectada! Alerta de queda! A vovó caiu!</Say></Response>',
             to=TO_PHONE,
             from_=FROM_PHONE,
         )
@@ -108,7 +108,7 @@ def classify_and_alert(row):
             print("Fazendo chamada de alerta...")
             print("Fazendo chamada de alerta...")
             print("Fazendo chamada de alerta...")
-           # make_call_alert()
+            make_call_alert()
     else:
         print("Nenhuma queda detectada.")
 
@@ -151,7 +151,7 @@ def on_open(ws):
 
 # Função para iniciar o WebSocket e receber dados em tempo real
 def start_websocket():
-    ws_url = 'ws://192.168.1.8:8080/sensors/connect?types=["android.sensor.accelerometer","android.sensor.gyroscope","android.sensor.magnetic_field","android.sensor.gravity","android.sensor.linear_acceleration","android.sensor.rotation_vector"]'
+    ws_url = 'ws://192.168.1.2:8080/sensors/connect?types=["android.sensor.accelerometer","android.sensor.gyroscope","android.sensor.magnetic_field","android.sensor.gravity","android.sensor.linear_acceleration","android.sensor.rotation_vector"]'
     try:
         ws = websocket.WebSocketApp(
             ws_url,
